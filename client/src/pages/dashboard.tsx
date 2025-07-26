@@ -73,7 +73,7 @@ export default function Dashboard() {
     },
   ];
 
-  const newContacts = contacts ? contacts.slice(0, 2) : [];
+  const newContacts = Array.isArray(contacts) ? contacts.slice(0, 2) : [];
 
   return (
     <div className="p-6 space-y-6">
