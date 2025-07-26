@@ -61,7 +61,7 @@ export function ConversationList({
             key={conversation.id}
             className={cn(
               "p-4 border-b border-border hover:bg-muted/50 cursor-pointer transition-colors",
-              selectedConversation === conversation.id && "bg-primary/10 border-l-4 border-l-primary"
+              selectedConversation === conversation.id && "bg-primary/10 border-r-4 border-r-primary"
             )}
             onClick={() => onSelectConversation(conversation.id)}
           >
