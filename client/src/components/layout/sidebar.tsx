@@ -100,10 +100,10 @@ export function Sidebar() {
             const Icon = item.icon;
             return (
               <Link key={item.name} href={item.href}>
-                <a className="flex items-center space-x-3 px-3 py-2 rounded-lg text-purple-200 hover:bg-purple-600/30 hover:text-primary-foreground transition-colors">
+                <div className="flex items-center space-x-3 px-3 py-2 rounded-lg text-purple-200 hover:bg-purple-600/30 hover:text-primary-foreground transition-colors cursor-pointer">
                   <Icon className="w-5 h-5" />
                   <span>{item.name}</span>
-                </a>
+                </div>
               </Link>
             );
           })}
