@@ -1,4 +1,6 @@
-import { type User, type InsertUser, type Conversation, type InsertConversation, type Message, type InsertMessage, type Contact, type InsertContact, type Agent, type InsertAgent, type Metrics, type InsertMetrics } from "@shared/schema";
+import { type User, type InsertUser, type Conversation, type InsertConversation, type Message, type InsertMessage, type Contact, type InsertContact, type Agent, type InsertAgent, type Metrics, type InsertMetrics, users, conversations, messages, contacts, agents, metrics } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -36,22 +38,16 @@ export interface IStorage {
   updateMetrics(metrics: InsertMetrics): Promise<Metrics>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User> = new Map();
-  private conversations: Map<string, Conversation> = new Map();
-  private messages: Map<string, Message> = new Map();
-  private contacts: Map<string, Contact> = new Map();
-  private agents: Map<string, Agent> = new Map();
-  private metrics: Metrics | undefined;
+export class DatabaseStorage implements IStorage {
+  async initializeData() {
+    // Check if data already exists
+    const existingAgents = await db.select().from(agents);
+    if (existingAgents.length > 0) {
+      return; // Data already initialized
+    }
 
-  constructor() {
-    this.initializeData();
-  }
-
-  private initializeData() {
     // Initialize SDR Agent
-    const sdrAgent: Agent = {
-      id: randomUUID(),
+    const [sdrAgent] = await db.insert(agents).values({
       name: "Assistente de Vendas (SDR)",
       type: "sdr",
       description: "Especializado em atendimento ao cliente e vendas com foco em prospecção e qualificação de leads. Treinado com dados de CRM e técnicas de vendas B2B.",
@@ -61,11 +57,9 @@ export class MemStorage implements IStorage {
       tools: ["web_search", "crm", "email"],
       conversationCount: 247,
       accuracy: 94,
-      createdAt: new Date(),
-    };
+    }).returning();
 
-    const supportAgent: Agent = {
-      id: randomUUID(),
+    const [supportAgent] = await db.insert(agents).values({
       name: "Suporte Técnico",
       type: "support",
       description: "Resolve problemas técnicos e dúvidas sobre produtos, especializado em troubleshooting e documentação técnica.",
@@ -75,11 +69,9 @@ export class MemStorage implements IStorage {
       tools: ["knowledge_base", "file_access", "diagnostics"],
       conversationCount: 189,
       accuracy: 91,
-      createdAt: new Date(),
-    };
+    }).returning();
 
-    const marketingAgent: Agent = {
-      id: randomUUID(),
+    const [marketingAgent] = await db.insert(agents).values({
       name: "Agente de Marketing",
       type: "marketing",
       description: "Cria conteúdo e estratégias de marketing digital, especializado em copywriting e análise de campanhas.",
@@ -89,17 +81,11 @@ export class MemStorage implements IStorage {
       tools: ["image_gen", "analytics", "social_media"],
       conversationCount: 72,
       accuracy: 89,
-      createdAt: new Date(),
-    };
-
-    this.agents.set(sdrAgent.id, sdrAgent);
-    this.agents.set(supportAgent.id, supportAgent);
-    this.agents.set(marketingAgent.id, marketingAgent);
+    }).returning();
 
     // Initialize sample contacts
-    const sampleContacts: Contact[] = [
+    const sampleContacts = await db.insert(contacts).values([
       {
-        id: randomUUID(),
         name: "Carlos Mendes",
         email: "carlos@startup.com",
         phone: "+55 11 99999-1111",
@@ -109,11 +95,8 @@ export class MemStorage implements IStorage {
         value: 12000,
         notes: "Interessado no plano empresarial",
         metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
       },
       {
-        id: randomUUID(),
         name: "Maria Santos",
         email: "maria.santos@email.com",
         phone: "+55 11 98888-2222",
@@ -123,11 +106,8 @@ export class MemStorage implements IStorage {
         value: 25000,
         notes: "Gostaria de saber mais sobre o produto",
         metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
       },
       {
-        id: randomUUID(),
         name: "João Silva",
         email: "joao@empresa.com",
         phone: "+55 11 97777-3333",
@@ -137,62 +117,43 @@ export class MemStorage implements IStorage {
         value: 35000,
         notes: "Qualificado pelo SDR",
         metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
       }
-    ];
+    ]).returning();
 
-    sampleContacts.forEach(contact => this.contacts.set(contact.id, contact));
-
-    // Initialize sample conversations
-    const conversation: Conversation = {
-      id: randomUUID(),
+    // Initialize sample conversation
+    const [conversation] = await db.insert(conversations).values({
       contactId: sampleContacts[0].id,
       status: "active",
-      lastMessageAt: new Date(),
       assignedAgentId: sdrAgent.id,
-      createdAt: new Date(),
-    };
-
-    this.conversations.set(conversation.id, conversation);
+    }).returning();
 
     // Initialize sample messages
-    const sampleMessages: Message[] = [
+    await db.insert(messages).values([
       {
-        id: randomUUID(),
         conversationId: conversation.id,
         senderId: null,
         content: "Olá! Gostaria de saber mais sobre seus serviços.",
         type: "text",
         isIncoming: true,
-        timestamp: new Date(Date.now() - 300000), // 5 min ago
       },
       {
-        id: randomUUID(),
         conversationId: conversation.id,
         senderId: sdrAgent.id,
         content: "Olá! Fico feliz em ajudar. Que tipo de serviço específico te interessa?",
         type: "text",
         isIncoming: false,
-        timestamp: new Date(Date.now() - 240000), // 4 min ago
       },
       {
-        id: randomUUID(),
         conversationId: conversation.id,
         senderId: null,
         content: "Estou interessado no plano empresarial. Vocês oferecem suporte 24/7 com agentes especializados?",
         type: "text",
         isIncoming: true,
-        timestamp: new Date(Date.now() - 120000), // 2 min ago
       }
-    ];
-
-    sampleMessages.forEach(message => this.messages.set(message.id, message));
+    ]);
 
     // Initialize metrics
-    this.metrics = {
-      id: randomUUID(),
-      date: new Date(),
+    await db.insert(metrics).values({
       activeConversations: 47,
       totalContacts: 2341,
       aiAgents: 8,
@@ -202,166 +163,146 @@ export class MemStorage implements IStorage {
         conversations: Math.floor(Math.random() * 100) + 20,
         resolutions: Math.floor(Math.random() * 80) + 15,
       })),
-    };
+    });
   }
 
   // Users
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { 
-      ...insertUser, 
-      id,
-      createdAt: new Date()
-    };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   // Conversations
   async getConversations(): Promise<Conversation[]> {
-    return Array.from(this.conversations.values());
+    return await db.select().from(conversations);
   }
 
   async getConversation(id: string): Promise<Conversation | undefined> {
-    return this.conversations.get(id);
+    const [conversation] = await db.select().from(conversations).where(eq(conversations.id, id));
+    return conversation || undefined;
   }
 
   async createConversation(insertConversation: InsertConversation): Promise<Conversation> {
-    const id = randomUUID();
-    const conversation: Conversation = {
-      ...insertConversation,
-      id,
-      createdAt: new Date(),
-      lastMessageAt: new Date(),
-    };
-    this.conversations.set(id, conversation);
+    const [conversation] = await db.insert(conversations).values(insertConversation).returning();
     return conversation;
   }
 
   async updateConversation(id: string, updates: Partial<Conversation>): Promise<Conversation | undefined> {
-    const conversation = this.conversations.get(id);
-    if (!conversation) return undefined;
-    
-    const updated = { ...conversation, ...updates };
-    this.conversations.set(id, updated);
-    return updated;
+    const [conversation] = await db.update(conversations)
+      .set(updates)
+      .where(eq(conversations.id, id))
+      .returning();
+    return conversation || undefined;
   }
 
   // Messages
   async getMessagesByConversation(conversationId: string): Promise<Message[]> {
-    return Array.from(this.messages.values())
-      .filter(message => message.conversationId === conversationId)
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return await db.select().from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(messages.timestamp);
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const id = randomUUID();
-    const message: Message = {
-      ...insertMessage,
-      id,
-      timestamp: new Date(),
-    };
-    this.messages.set(id, message);
+    const [message] = await db.insert(messages).values(insertMessage).returning();
     
     // Update conversation last message time
-    const conversation = this.conversations.get(insertMessage.conversationId);
-    if (conversation) {
-      await this.updateConversation(conversation.id, { lastMessageAt: new Date() });
-    }
+    await db.update(conversations)
+      .set({ lastMessageAt: new Date() })
+      .where(eq(conversations.id, insertMessage.conversationId));
     
     return message;
   }
 
   // Contacts
   async getContacts(): Promise<Contact[]> {
-    return Array.from(this.contacts.values());
+    return await db.select().from(contacts);
   }
 
   async getContact(id: string): Promise<Contact | undefined> {
-    return this.contacts.get(id);
+    const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+    return contact || undefined;
   }
 
   async createContact(insertContact: InsertContact): Promise<Contact> {
-    const id = randomUUID();
-    const contact: Contact = {
-      ...insertContact,
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    this.contacts.set(id, contact);
+    const [contact] = await db.insert(contacts).values(insertContact).returning();
     return contact;
   }
 
   async updateContact(id: string, updates: Partial<Contact>): Promise<Contact | undefined> {
-    const contact = this.contacts.get(id);
-    if (!contact) return undefined;
-    
-    const updated = { ...contact, ...updates, updatedAt: new Date() };
-    this.contacts.set(id, updated);
-    return updated;
+    const [contact] = await db.update(contacts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contacts.id, id))
+      .returning();
+    return contact || undefined;
   }
 
   async deleteContact(id: string): Promise<boolean> {
-    return this.contacts.delete(id);
+    const result = await db.delete(contacts).where(eq(contacts.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Agents
   async getAgents(): Promise<Agent[]> {
-    return Array.from(this.agents.values());
+    return await db.select().from(agents);
   }
 
   async getAgent(id: string): Promise<Agent | undefined> {
-    return this.agents.get(id);
+    const [agent] = await db.select().from(agents).where(eq(agents.id, id));
+    return agent || undefined;
   }
 
   async createAgent(insertAgent: InsertAgent): Promise<Agent> {
-    const id = randomUUID();
-    const agent: Agent = {
-      ...insertAgent,
-      id,
-      conversationCount: 0,
-      createdAt: new Date(),
-    };
-    this.agents.set(id, agent);
+    const [agent] = await db.insert(agents).values(insertAgent).returning();
     return agent;
   }
 
   async updateAgent(id: string, updates: Partial<Agent>): Promise<Agent | undefined> {
-    const agent = this.agents.get(id);
-    if (!agent) return undefined;
-    
-    const updated = { ...agent, ...updates };
-    this.agents.set(id, updated);
-    return updated;
+    const [agent] = await db.update(agents)
+      .set(updates)
+      .where(eq(agents.id, id))
+      .returning();
+    return agent || undefined;
   }
 
   async deleteAgent(id: string): Promise<boolean> {
-    return this.agents.delete(id);
+    const result = await db.delete(agents).where(eq(agents.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Metrics
   async getMetrics(): Promise<Metrics | undefined> {
-    return this.metrics;
+    const [metricsResult] = await db.select().from(metrics).limit(1);
+    return metricsResult || undefined;
   }
 
   async updateMetrics(insertMetrics: InsertMetrics): Promise<Metrics> {
-    const id = this.metrics?.id || randomUUID();
-    this.metrics = {
-      ...insertMetrics,
-      id,
-      date: new Date(),
-    };
-    return this.metrics;
+    // First try to update existing metrics
+    const [existing] = await db.select().from(metrics).limit(1);
+    
+    if (existing) {
+      const [updated] = await db.update(metrics)
+        .set({ ...insertMetrics, date: new Date() })
+        .where(eq(metrics.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(metrics).values(insertMetrics).returning();
+      return created;
+    }
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
+
+// Initialize sample data on startup
+storage.initializeData().catch(console.error);

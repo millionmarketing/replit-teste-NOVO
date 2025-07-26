@@ -31,7 +31,8 @@ The application follows a monorepo structure with clear separation between clien
 ### Backend Architecture
 - **Server Framework**: Express.js with TypeScript
 - **API Routes**: RESTful endpoints for CRUD operations
-- **Storage Layer**: Abstracted storage interface with in-memory implementation
+- **Storage Layer**: Abstracted storage interface with PostgreSQL database implementation
+- **Database**: PostgreSQL with Drizzle ORM and Neon serverless
 - **Development Tools**: Vite integration for hot reloading in development
 
 ### Database Schema
@@ -81,7 +82,7 @@ The application is configured for deployment with:
 2. **Production**: 
    - Frontend built with Vite to static assets
    - Backend bundled with esbuild
-   - PostgreSQL database (currently using Neon serverless)
+   - PostgreSQL database using Neon serverless with full schema migration
    - Environment variables for database connection
 
 **Build Process**:
