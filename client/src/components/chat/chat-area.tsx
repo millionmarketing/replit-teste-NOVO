@@ -181,9 +181,7 @@ export function ChatArea({ conversation, messages, onSendMessage, isLoading }: C
           </Button>
           <div className="flex-1 relative">
             <Textarea
-              placeholder="Digite sua mensagem... 
-Use *texto* para negrito, _texto_ para itálico, ~texto~ para riscado
-Pressione Shift+Enter para nova linha, Enter para enviar"
+              placeholder="Digite sua mensagem..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
