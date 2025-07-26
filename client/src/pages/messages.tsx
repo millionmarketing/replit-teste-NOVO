@@ -67,7 +67,9 @@ export default function Messages() {
     }
   };
 
-  const selectedConversationData = conversations.find(c => c.id === selectedConversation);
+  const selectedConversationData = Array.isArray(conversations) 
+    ? conversations.find(c => c.id === selectedConversation)
+    : undefined;
 
   if (isLoading) {
     return (
