@@ -6,7 +6,7 @@ interface WhatsAppConfig {
   webhookVerifyToken: string;
 }
 
-class WhatsAppService {
+export class WhatsAppService {
   private config: WhatsAppConfig;
   private baseUrl = 'https://graph.facebook.com/v18.0';
 
@@ -171,4 +171,3 @@ export function getWhatsAppService(): WhatsAppService | null {
   return whatsAppService;
 }
 
-export { WhatsAppService };

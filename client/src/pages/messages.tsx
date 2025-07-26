@@ -16,14 +16,14 @@ export default function Messages() {
   const { data: conversations = [], isLoading } = useQuery<ConversationWithDetails[]>({
     queryKey: ["/api/conversations"],
     queryFn: api.getConversations,
-    refetchInterval: 5000, // Refresh conversations every 5 seconds
+    refetchInterval: 2000, // Refresh conversations every 2 seconds for faster updates
   });
 
   const { data: messages = [] } = useQuery<Message[]>({
     queryKey: ["/api/conversations", selectedConversation, "messages"],
     queryFn: () => selectedConversation ? api.getMessages(selectedConversation) : Promise.resolve([]),
     enabled: !!selectedConversation,
-    refetchInterval: selectedConversation ? 3000 : false, // Refresh messages every 3 seconds when conversation is selected
+    refetchInterval: selectedConversation ? 2000 : false, // Refresh messages every 2 seconds for faster updates
   });
 
   // Check WhatsApp connection status

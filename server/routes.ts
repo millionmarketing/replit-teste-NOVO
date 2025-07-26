@@ -270,26 +270,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp webhook for incoming messages (POST)
   app.post("/api/whatsapp/webhook", async (req, res) => {
     try {
-      const whatsAppService = getWhatsAppService();
-
-      if (!whatsAppService) {
-        console.warn("WhatsApp service not initialized");
+      // Get WhatsApp settings from database instead of environment
+      const settings = await storage.getWhatsappSettings();
+      if (!settings || !settings.accessToken || !settings.phoneNumberId) {
+        console.warn("WhatsApp not configured in database");
         return res.status(200).send("OK"); // Still return 200 to avoid webhook retries
       }
 
+      // Create temporary service instance with database settings
+      const { WhatsAppService } = await import('./whatsapp');
+      const tempService = new WhatsAppService({
+        accessToken: settings.accessToken,
+        phoneNumberId: settings.phoneNumberId,
+        webhookVerifyToken: settings.webhookVerifyToken || '',
+      });
+
       // Parse incoming messages
-      const messages = whatsAppService.parseWebhook(req.body);
+      const messages = tempService.parseWebhook(req.body);
+      console.log(`Received ${messages.length} WhatsApp messages`);
 
       for (const msg of messages) {
+        console.log(`Processing message from ${msg.from}: ${msg.message}`);
+        
         // Find or create contact
         let contact = (await storage.getContacts()).find(c => c.phone === msg.from);
         if (!contact) {
           contact = await storage.createContact({
-            name: `WhatsApp User ${msg.from}`,
+            name: `WhatsApp ${msg.from}`,
             phone: msg.from,
             source: "whatsapp",
             stage: "new",
           });
+          console.log(`Created new contact: ${contact.id}`);
         }
         
         // Find or create conversation
@@ -303,21 +315,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "active",
             assignedAgentId: sdrAgent?.id,
           });
+          console.log(`Created new conversation: ${conversation.id}`);
         }
         
         // Create message
-        await storage.createMessage({
+        const newMessage = await storage.createMessage({
           conversationId: conversation.id,
           content: msg.message,
           type: "text",
           isIncoming: true,
         });
+        console.log(`Created message: ${newMessage.id}`);
 
         // Mark message as read
-        await whatsAppService.markAsRead(msg.messageId);
-
-        // TODO: Trigger AI agent response based on assigned agent
-        // This would integrate with LangChain or other AI service
+        try {
+          await tempService.markAsRead(msg.messageId);
+        } catch (error) {
+          console.warn("Failed to mark message as read:", error);
+        }
       }
       
       res.status(200).send("OK");
