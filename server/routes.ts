@@ -1,11 +1,122 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertContactSchema, insertConversationSchema, insertMessageSchema, insertAgentSchema } from "@shared/schema";
+import { insertContactSchema, insertConversationSchema, insertMessageSchema, insertAgentSchema, loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from "@shared/schema";
 import { z } from "zod";
 import { getWhatsAppService, initializeWhatsApp } from "./whatsapp";
+import { authService } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const data = registerSchema.parse(req.body);
+      const result = await authService.register(data);
+      res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+        });
+      }
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao criar usuário" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const data = loginSchema.parse(req.body);
+      const result = await authService.login(data);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+        });
+      }
+      res.status(401).json({ error: error instanceof Error ? error.message : "Erro ao fazer login" });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        await authService.logout(token);
+      }
+      res.json({ message: "Logout realizado com sucesso" });
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao fazer logout" });
+    }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const user = await authService.authenticateRequest(req.headers.authorization);
+      if (!user) {
+        return res.status(401).json({ error: "Não autenticado" });
+      }
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar usuário" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const data = forgotPasswordSchema.parse(req.body);
+      const resetToken = await authService.requestPasswordReset(data.email);
+      
+      // In production, send email with reset link
+      // For development, return the token
+      res.json({ 
+        message: "Token de reset enviado",
+        resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Email inválido", 
+          details: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+        });
+      }
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao solicitar reset" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const data = resetPasswordSchema.parse(req.body);
+      await authService.resetPassword(data.token, data.password);
+      res.json({ message: "Senha alterada com sucesso" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Dados inválidos", 
+          details: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+        });
+      }
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao alterar senha" });
+    }
+  });
+
+  // Auth middleware for protected routes
+  const requireAuth = async (req: any, res: any, next: any) => {
+    try {
+      const user = await authService.authenticateRequest(req.headers.authorization);
+      if (!user) {
+        return res.status(401).json({ error: "Acesso negado" });
+      }
+      req.user = user;
+      next();
+    } catch (error) {
+      res.status(401).json({ error: "Token inválido" });
+    }
+  };
+
   // Metrics
   app.get("/api/metrics", async (req, res) => {
     try {
