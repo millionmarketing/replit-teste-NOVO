@@ -8,6 +8,16 @@ This is a full-stack web application built with React and Express.js that implem
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**July 26, 2025 - WhatsApp API Integration Complete**
+- ✅ Full WhatsApp Meta API integration implemented
+- ✅ Configuration interface in Settings → Integração WhatsApp  
+- ✅ Database schema for storing WhatsApp credentials securely
+- ✅ Webhook endpoints for receiving/sending messages
+- ✅ Real-time configuration updates and status validation
+- ✅ Template message support and automatic lead assignment to SDR agent
+
 ## System Architecture
 
 The application follows a monorepo structure with clear separation between client and server code:

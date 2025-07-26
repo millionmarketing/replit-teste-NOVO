@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertContactSchema, insertConversationSchema, insertMessageSchema, insertAgentSchema } from "@shared/schema";
 import { z } from "zod";
+import { getWhatsAppService, initializeWhatsApp } from "./whatsapp";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Metrics
@@ -246,11 +247,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // WhatsApp webhook verification (GET)
   app.get("/api/whatsapp/webhook", (req, res) => {
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
+    const mode = req.query["hub.mode"] as string;
+    const token = req.query["hub.verify_token"] as string;
+    const challenge = req.query["hub.challenge"] as string;
 
-    const { getWhatsAppService } = require("./whatsapp");
     const whatsAppService = getWhatsAppService();
 
     if (whatsAppService) {
@@ -266,7 +266,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp webhook for incoming messages (POST)
   app.post("/api/whatsapp/webhook", async (req, res) => {
     try {
-      const { getWhatsAppService } = require("./whatsapp");
       const whatsAppService = getWhatsAppService();
 
       if (!whatsAppService) {
@@ -328,7 +327,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/whatsapp/send", async (req, res) => {
     try {
       const { to, message, type = "text" } = req.body;
-      const { getWhatsAppService } = require("./whatsapp");
       const whatsAppService = getWhatsAppService();
 
       if (!whatsAppService) {
@@ -396,7 +394,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Reinitialize WhatsApp service with new settings
-      const { initializeWhatsApp } = require("./whatsapp");
       
       // Set environment variables temporarily for this instance
       process.env.WHATSAPP_ACCESS_TOKEN = accessToken;

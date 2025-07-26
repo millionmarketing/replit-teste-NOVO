@@ -41,10 +41,7 @@ export default function Settings() {
   // Mutation to update WhatsApp settings
   const updateWhatsappSettings = useMutation({
     mutationFn: (data: typeof whatsappForm) => 
-      apiRequest("/api/whatsapp/settings", {
-        method: "POST",
-        body: JSON.stringify(data)
-      }),
+      apiRequest("POST", "/api/whatsapp/settings", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/settings"] });
       toast({
