@@ -118,9 +118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Metrics
-  app.get("/api/metrics", async (req, res) => {
+  app.get("/api/metrics", requireAuth, async (req: any, res) => {
     try {
-      const metrics = await storage.getMetrics();
+      const metrics = await storage.getMetrics(req.user.id);
       res.json(metrics);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch metrics" });
@@ -128,16 +128,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Conversations
-  app.get("/api/conversations", async (req, res) => {
+  app.get("/api/conversations", requireAuth, async (req: any, res) => {
     try {
-      const conversations = await storage.getConversations();
+      const userId = req.user.id;
+      const conversations = await storage.getConversations(userId);
       const conversationsWithDetails = await Promise.all(
         conversations.map(async (conversation) => {
-          const contact = await storage.getContact(conversation.contactId);
+          const contact = await storage.getContact(conversation.contactId, userId);
           const agent = conversation.assignedAgentId 
-            ? await storage.getAgent(conversation.assignedAgentId)
+            ? await storage.getAgent(conversation.assignedAgentId, userId)
             : null;
-          const messages = await storage.getMessagesByConversation(conversation.id);
+          const messages = await storage.getMessagesByConversation(conversation.id, userId);
           const lastMessage = messages[messages.length - 1];
           
           return {
@@ -155,16 +156,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/conversations/:id", async (req, res) => {
+  app.get("/api/conversations/:id", requireAuth, async (req: any, res) => {
     try {
-      const conversation = await storage.getConversation(req.params.id);
+      const userId = req.user.id;
+      const conversation = await storage.getConversation(req.params.id, userId);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
       }
       
-      const contact = await storage.getContact(conversation.contactId);
+      const contact = await storage.getContact(conversation.contactId, userId);
       const agent = conversation.assignedAgentId 
-        ? await storage.getAgent(conversation.assignedAgentId)
+        ? await storage.getAgent(conversation.assignedAgentId, userId)
         : null;
       
       res.json({
@@ -177,10 +179,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/conversations", async (req, res) => {
+  app.post("/api/conversations", requireAuth, async (req: any, res) => {
     try {
       const data = insertConversationSchema.parse(req.body);
-      const conversation = await storage.createConversation(data);
+      const conversation = await storage.createConversation({ ...data, userId: req.user.id });
       res.status(201).json(conversation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -191,31 +193,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Messages
-  app.get("/api/conversations/:id/messages", async (req, res) => {
+  app.get("/api/conversations/:id/messages", requireAuth, async (req: any, res) => {
     try {
-      const messages = await storage.getMessagesByConversation(req.params.id);
+      const messages = await storage.getMessagesByConversation(req.params.id, req.user.id);
       res.json(messages);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
 
-  app.post("/api/conversations/:id/messages", async (req, res) => {
+  app.post("/api/conversations/:id/messages", requireAuth, async (req: any, res) => {
     try {
       const data = insertMessageSchema.parse({
         ...req.body,
         conversationId: req.params.id,
       });
-      const message = await storage.createMessage(data);
+      const message = await storage.createMessage({ ...data, userId: req.user.id });
       
       // If it's an outgoing message, send via WhatsApp API
       if (!data.isIncoming) {
-        const conversation = await storage.getConversation(req.params.id);
+        const conversation = await storage.getConversation(req.params.id, req.user.id);
         if (conversation) {
-          const contact = await storage.getContact(conversation.contactId);
+          const contact = await storage.getContact(conversation.contactId, req.user.id);
           if (contact?.phone) {
             // Get WhatsApp settings from database
-            const settings = await storage.getWhatsappSettings();
+            const settings = await storage.getWhatsappSettings(req.user.id);
             if (settings && settings.accessToken && settings.phoneNumberId) {
               const { WhatsAppService } = await import('./whatsapp');
               const whatsAppService = new WhatsAppService({
@@ -261,18 +263,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Contacts
-  app.get("/api/contacts", async (req, res) => {
+  app.get("/api/contacts", requireAuth, async (req: any, res) => {
     try {
-      const contacts = await storage.getContacts();
+      const contacts = await storage.getContacts(req.user.id);
       res.json(contacts);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch contacts" });
     }
   });
 
-  app.get("/api/contacts/:id", async (req, res) => {
+  app.get("/api/contacts/:id", requireAuth, async (req: any, res) => {
     try {
-      const contact = await storage.getContact(req.params.id);
+      const contact = await storage.getContact(req.params.id, req.user.id);
       if (!contact) {
         return res.status(404).json({ error: "Contact not found" });
       }
@@ -282,10 +284,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/contacts", async (req, res) => {
+  app.post("/api/contacts", requireAuth, async (req: any, res) => {
     try {
       const data = insertContactSchema.parse(req.body);
-      const contact = await storage.createContact(data);
+      const contact = await storage.createContact({ ...data, userId: req.user.id });
       res.status(201).json(contact);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -295,10 +297,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/contacts/:id", async (req, res) => {
+  app.put("/api/contacts/:id", requireAuth, async (req: any, res) => {
     try {
       const updates = req.body;
-      const contact = await storage.updateContact(req.params.id, updates);
+      const contact = await storage.updateContact(req.params.id, req.user.id, updates);
       if (!contact) {
         return res.status(404).json({ error: "Contact not found" });
       }
@@ -308,9 +310,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/contacts/:id", async (req, res) => {
+  app.delete("/api/contacts/:id", requireAuth, async (req: any, res) => {
     try {
-      const deleted = await storage.deleteContact(req.params.id);
+      const deleted = await storage.deleteContact(req.params.id, req.user.id);
       if (!deleted) {
         return res.status(404).json({ error: "Contact not found" });
       }
@@ -321,18 +323,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agents
-  app.get("/api/agents", async (req, res) => {
+  app.get("/api/agents", requireAuth, async (req: any, res) => {
     try {
-      const agents = await storage.getAgents();
+      const agents = await storage.getAgents(req.user.id);
       res.json(agents);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch agents" });
     }
   });
 
-  app.get("/api/agents/:id", async (req, res) => {
+  app.get("/api/agents/:id", requireAuth, async (req: any, res) => {
     try {
-      const agent = await storage.getAgent(req.params.id);
+      const agent = await storage.getAgent(req.params.id, req.user.id);
       if (!agent) {
         return res.status(404).json({ error: "Agent not found" });
       }
@@ -342,10 +344,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/agents", async (req, res) => {
+  app.post("/api/agents", requireAuth, async (req: any, res) => {
     try {
       const data = insertAgentSchema.parse(req.body);
-      const agent = await storage.createAgent(data);
+      const agent = await storage.createAgent({ ...data, userId: req.user.id });
       res.status(201).json(agent);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -355,10 +357,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/agents/:id", async (req, res) => {
+  app.put("/api/agents/:id", requireAuth, async (req: any, res) => {
     try {
       const updates = req.body;
-      const agent = await storage.updateAgent(req.params.id, updates);
+      const agent = await storage.updateAgent(req.params.id, req.user.id, updates);
       if (!agent) {
         return res.status(404).json({ error: "Agent not found" });
       }
@@ -368,9 +370,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/agents/:id", async (req, res) => {
+  app.delete("/api/agents/:id", requireAuth, async (req: any, res) => {
     try {
-      const deleted = await storage.deleteAgent(req.params.id);
+      const deleted = await storage.deleteAgent(req.params.id, req.user.id);
       if (!deleted) {
         return res.status(404).json({ error: "Agent not found" });
       }
@@ -401,10 +403,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp webhook for incoming messages (POST)
   app.post("/api/whatsapp/webhook", async (req, res) => {
     try {
-      // Get WhatsApp settings from database instead of environment
-      const settings = await storage.getWhatsappSettings();
-      if (!settings || !settings.accessToken || !settings.phoneNumberId) {
-        console.warn("WhatsApp not configured in database");
+      // For webhook, we need to determine which user this belongs to
+      // This is a simplified approach - you might want more sophisticated routing
+      const allUsers = await db.select().from(users);
+      let settings = null;
+      let targetUserId = null;
+      
+      // Find the first user with WhatsApp settings configured
+      for (const user of allUsers) {
+        const userSettings = await storage.getWhatsappSettings(user.id);
+        if (userSettings && userSettings.accessToken && userSettings.phoneNumberId) {
+          settings = userSettings;
+          targetUserId = user.id;
+          break;
+        }
+      }
+      
+      if (!settings || !targetUserId) {
+        console.warn("WhatsApp not configured for any user");
         return res.status(200).send("OK"); // Still return 200 to avoid webhook retries
       }
 
@@ -423,13 +439,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const msg of messages) {
         console.log(`Processing message from ${msg.from}: ${msg.message}`);
         
-        // Find or create contact
-        let contact = (await storage.getContacts()).find(c => c.phone === msg.from);
+        // Find or create contact for the specific user
+        let contact = (await storage.getContacts(targetUserId)).find(c => c.phone === msg.from);
         if (!contact) {
           // Extract name from WhatsApp contact info if available, otherwise use last 4 digits
           const contactName = msg.contactName || `Lead ${msg.from.slice(-4)}`;
           
           contact = await storage.createContact({
+            userId: targetUserId,
             name: contactName,
             phone: msg.from,
             source: "whatsapp",
@@ -438,18 +455,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Created new contact: ${contact.id} with name: ${contactName}`);
         } else if (msg.contactName && contact.name.startsWith('WhatsApp ')) {
           // Update existing contact name if we got a real name from WhatsApp
-          const updatedContact = await storage.updateContact(contact.id, { name: msg.contactName });
+          const updatedContact = await storage.updateContact(contact.id, targetUserId, { name: msg.contactName });
           console.log(`Updated contact name from "${contact.name}" to "${msg.contactName}"`);
           contact = updatedContact || contact;
         }
         
-        // Find or create conversation
-        let conversation = (await storage.getConversations()).find(c => c.contactId === contact.id);
+        // Find or create conversation for the specific user
+        let conversation = (await storage.getConversations(targetUserId)).find(c => c.contactId === contact.id);
         if (!conversation) {
-          const agents = await storage.getAgents();
+          const agents = await storage.getAgents(targetUserId);
           const sdrAgent = agents.find(a => a.type === "sdr" && a.status === "active");
           
           conversation = await storage.createConversation({
+            userId: targetUserId,
             contactId: contact.id,
             status: "active",
             assignedAgentId: sdrAgent?.id,
@@ -457,8 +475,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Created new conversation: ${conversation.id}`);
         }
         
-        // Create message
+        // Create message for the specific user
         const newMessage = await storage.createMessage({
+          userId: targetUserId,
           conversationId: conversation.id,
           content: msg.message,
           type: "text",
@@ -512,9 +531,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // WhatsApp Settings API routes
-  app.get("/api/whatsapp/settings", async (req, res) => {
+  app.get("/api/whatsapp/settings", requireAuth, async (req: any, res) => {
     try {
-      const settings = await storage.getWhatsappSettings();
+      const settings = await storage.getWhatsappSettings(req.user.id);
       // Don't return sensitive tokens to frontend, only configuration status
       if (settings) {
         res.json({
@@ -537,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/whatsapp/settings", async (req, res) => {
+  app.post("/api/whatsapp/settings", requireAuth, async (req: any, res) => {
     try {
       const { accessToken, phoneNumberId, webhookVerifyToken, autoResponses } = req.body;
       
@@ -545,7 +564,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const settings = await storage.updateWhatsappSettings({
+      const settings = await storage.updateWhatsappSettings(req.user.id, {
+        userId: req.user.id,
         accessToken,
         phoneNumberId,
         webhookVerifyToken,

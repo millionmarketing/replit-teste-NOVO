@@ -28,6 +28,7 @@ export const sessions = pgTable("sessions", {
 
 export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   contactId: varchar("contact_id").notNull(),
   status: text("status").notNull().default("active"), // active, resolved, pending
   lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
@@ -37,6 +38,7 @@ export const conversations = pgTable("conversations", {
 
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   conversationId: varchar("conversation_id").notNull(),
   senderId: varchar("sender_id"), // null for incoming messages
   content: text("content").notNull(),
@@ -47,6 +49,7 @@ export const messages = pgTable("messages", {
 
 export const contacts = pgTable("contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
@@ -62,6 +65,7 @@ export const contacts = pgTable("contacts", {
 
 export const agents = pgTable("agents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   type: text("type").notNull(), // sdr, support, marketing
   description: text("description").notNull(),
@@ -76,6 +80,7 @@ export const agents = pgTable("agents", {
 
 export const metrics = pgTable("metrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   date: timestamp("date").defaultNow().notNull(),
   activeConversations: integer("active_conversations").default(0),
   totalContacts: integer("total_contacts").default(0),
@@ -86,6 +91,7 @@ export const metrics = pgTable("metrics", {
 
 export const whatsappSettings = pgTable("whatsapp_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
   accessToken: text("access_token"),
   phoneNumberId: text("phone_number_id"),
   webhookVerifyToken: text("webhook_verify_token"),
