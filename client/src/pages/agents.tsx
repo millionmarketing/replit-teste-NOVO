@@ -87,12 +87,13 @@ export default function Agents() {
     );
   }
 
-  const activeAgents = agents.filter(a => a.status === 'active').length;
-  const avgAccuracy = agents.length > 0 
-    ? Math.round(agents.reduce((sum, a) => sum + (a.accuracy || 0), 0) / agents.length)
+  const safeAgents = Array.isArray(agents) ? agents : [];
+  const activeAgents = safeAgents.filter(a => a.status === 'active').length;
+  const avgAccuracy = safeAgents.length > 0 
+    ? Math.round(safeAgents.reduce((sum, a) => sum + (a.accuracy || 0), 0) / safeAgents.length)
     : 0;
-  const totalConversations = agents.reduce((sum, a) => sum + (a.conversationCount || 0), 0);
-  const onlineAgents = agents.filter(a => a.status === 'active').length;
+  const totalConversations = safeAgents.reduce((sum, a) => sum + (a.conversationCount || 0), 0);
+  const onlineAgents = safeAgents.filter(a => a.status === 'active').length;
 
   return (
     <div className="p-6 space-y-6">
@@ -173,7 +174,7 @@ export default function Agents() {
           <p className="text-muted-foreground text-sm">Gerencie e configure seus agentes de IA</p>
         </CardHeader>
         <CardContent className="divide-y divide-border">
-          {agents.map((agent) => {
+          {safeAgents.map((agent) => {
             const IconComponent = getAgentIcon(agent.type);
             const isHighlighted = agent.type === 'sdr';
             
