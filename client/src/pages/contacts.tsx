@@ -42,7 +42,8 @@ export default function Contacts() {
   };
 
   // Filter contacts based on search term
-  const filteredContacts = contacts.filter(contact =>
+  const safeContacts = Array.isArray(contacts) ? contacts : [];
+  const filteredContacts = safeContacts.filter(contact =>
     contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.company?.toLowerCase().includes(searchTerm.toLowerCase())
