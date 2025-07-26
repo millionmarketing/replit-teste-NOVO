@@ -48,8 +48,12 @@ function UnauthenticatedRouter() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
-      <Route path="/" component={LoginPage} />
-      <Route component={LoginPage} />
+      <Route path="/">
+        {() => <LoginPage />}
+      </Route>
+      <Route>
+        {() => <LoginPage />}
+      </Route>
     </Switch>
   );
 }

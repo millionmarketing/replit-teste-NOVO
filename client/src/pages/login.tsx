@@ -35,7 +35,7 @@ export default function LoginPage() {
         title: 'Login realizado com sucesso!',
         description: 'Bem-vindo de volta.',
       });
-      setLocation('/');
+      setLocation('/dashboard');
     } catch (error) {
       toast({
         title: 'Erro ao fazer login',
