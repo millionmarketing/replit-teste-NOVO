@@ -94,36 +94,6 @@ export default function Messages() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* WhatsApp Status Bar */}
-      {whatsappStatus && (
-        <div className={`px-4 py-2 text-sm font-medium border-b ${
-          whatsappStatus.isConfigured && whatsappStatus.isActive
-            ? 'bg-green-50 text-green-800 border-green-200'
-            : 'bg-yellow-50 text-yellow-800 border-yellow-200'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
-                whatsappStatus.isConfigured && whatsappStatus.isActive
-                  ? 'bg-green-500'
-                  : 'bg-yellow-500'
-              }`}></div>
-              <span>
-                WhatsApp: {whatsappStatus.isConfigured && whatsappStatus.isActive
-                  ? 'Conectado e ativo'
-                  : 'Não configurado'
-                }
-              </span>
-            </div>
-            {(!whatsappStatus.isConfigured || !whatsappStatus.isActive) && (
-              <span className="text-xs">
-                Configure nas Configurações → Integração WhatsApp
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-      
       <div className="flex flex-1 overflow-hidden">
         <ConversationList
           conversations={conversations}
