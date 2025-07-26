@@ -51,7 +51,7 @@ export function ChatArea({ conversation, messages, onSendMessage, isLoading }: C
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(2, 2);
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   const formatTime = (date: Date) => {

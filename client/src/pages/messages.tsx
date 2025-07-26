@@ -98,13 +98,13 @@ export default function Messages() {
     <div className="flex flex-col h-full">
       <div className="flex flex-1 overflow-hidden">
         <ConversationList
-          conversations={conversations}
+          conversations={Array.isArray(conversations) ? conversations : []}
           selectedConversation={selectedConversation}
           onSelectConversation={setSelectedConversation}
         />
         <ChatArea
           conversation={selectedConversationData}
-          messages={messages}
+          messages={Array.isArray(messages) ? messages : []}
           onSendMessage={handleSendMessage}
           isLoading={sendMessageMutation.isPending}
         />
