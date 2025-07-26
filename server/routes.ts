@@ -244,47 +244,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // WhatsApp webhook simulation
+  // WhatsApp webhook verification (GET)
+  app.get("/api/whatsapp/webhook", (req, res) => {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+
+    const { getWhatsAppService } = require("./whatsapp");
+    const whatsAppService = getWhatsAppService();
+
+    if (whatsAppService) {
+      const verificationResult = whatsAppService.verifyWebhook(mode, token, challenge);
+      if (verificationResult) {
+        return res.status(200).send(verificationResult);
+      }
+    }
+
+    res.status(403).send("Verification failed");
+  });
+
+  // WhatsApp webhook for incoming messages (POST)
   app.post("/api/whatsapp/webhook", async (req, res) => {
     try {
-      // Simulate incoming WhatsApp message
-      const { from, message } = req.body;
-      
-      // Find or create contact
-      let contact = (await storage.getContacts()).find(c => c.phone === from);
-      if (!contact) {
-        contact = await storage.createContact({
-          name: `WhatsApp User ${from}`,
-          phone: from,
-          source: "whatsapp",
-          stage: "new",
-        });
+      const { getWhatsAppService } = require("./whatsapp");
+      const whatsAppService = getWhatsAppService();
+
+      if (!whatsAppService) {
+        console.warn("WhatsApp service not initialized");
+        return res.status(200).send("OK"); // Still return 200 to avoid webhook retries
       }
-      
-      // Find or create conversation
-      let conversation = (await storage.getConversations()).find(c => c.contactId === contact.id);
-      if (!conversation) {
-        const agents = await storage.getAgents();
-        const sdrAgent = agents.find(a => a.type === "sdr" && a.status === "active");
+
+      // Parse incoming messages
+      const messages = whatsAppService.parseWebhook(req.body);
+
+      for (const msg of messages) {
+        // Find or create contact
+        let contact = (await storage.getContacts()).find(c => c.phone === msg.from);
+        if (!contact) {
+          contact = await storage.createContact({
+            name: `WhatsApp User ${msg.from}`,
+            phone: msg.from,
+            source: "whatsapp",
+            stage: "new",
+          });
+        }
         
-        conversation = await storage.createConversation({
-          contactId: contact.id,
-          status: "active",
-          assignedAgentId: sdrAgent?.id,
+        // Find or create conversation
+        let conversation = (await storage.getConversations()).find(c => c.contactId === contact.id);
+        if (!conversation) {
+          const agents = await storage.getAgents();
+          const sdrAgent = agents.find(a => a.type === "sdr" && a.status === "active");
+          
+          conversation = await storage.createConversation({
+            contactId: contact.id,
+            status: "active",
+            assignedAgentId: sdrAgent?.id,
+          });
+        }
+        
+        // Create message
+        await storage.createMessage({
+          conversationId: conversation.id,
+          content: msg.message,
+          type: "text",
+          isIncoming: true,
         });
+
+        // Mark message as read
+        await whatsAppService.markAsRead(msg.messageId);
+
+        // TODO: Trigger AI agent response based on assigned agent
+        // This would integrate with LangChain or other AI service
       }
       
-      // Create message
-      await storage.createMessage({
-        conversationId: conversation.id,
-        content: message,
-        type: "text",
-        isIncoming: true,
-      });
-      
-      res.json({ success: true });
+      res.status(200).send("OK");
     } catch (error) {
+      console.error("WhatsApp webhook error:", error);
       res.status(500).json({ error: "Failed to process webhook" });
+    }
+  });
+
+  // Send WhatsApp message
+  app.post("/api/whatsapp/send", async (req, res) => {
+    try {
+      const { to, message, type = "text" } = req.body;
+      const { getWhatsAppService } = require("./whatsapp");
+      const whatsAppService = getWhatsAppService();
+
+      if (!whatsAppService) {
+        return res.status(500).json({ error: "WhatsApp service not configured" });
+      }
+
+      let success = false;
+      if (type === "text") {
+        success = await whatsAppService.sendMessage(to, message);
+      } else if (type === "template") {
+        success = await whatsAppService.sendTemplateMessage(to, message);
+      }
+
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: "Failed to send message" });
+      }
+    } catch (error) {
+      console.error("Send message error:", error);
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  // WhatsApp Settings API routes
+  app.get("/api/whatsapp/settings", async (req, res) => {
+    try {
+      const settings = await storage.getWhatsappSettings();
+      // Don't return sensitive tokens to frontend, only configuration status
+      if (settings) {
+        res.json({
+          id: settings.id,
+          isConfigured: !!(settings.accessToken && settings.phoneNumberId),
+          autoResponses: settings.autoResponses,
+          isActive: settings.isActive,
+          phoneNumberId: settings.phoneNumberId ? settings.phoneNumberId.slice(-4) : null, // Only last 4 digits
+          updatedAt: settings.updatedAt
+        });
+      } else {
+        res.json({
+          isConfigured: false,
+          autoResponses: true,
+          isActive: false
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch WhatsApp settings" });
+    }
+  });
+
+  app.post("/api/whatsapp/settings", async (req, res) => {
+    try {
+      const { accessToken, phoneNumberId, webhookVerifyToken, autoResponses } = req.body;
+      
+      if (!accessToken || !phoneNumberId || !webhookVerifyToken) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const settings = await storage.updateWhatsappSettings({
+        accessToken,
+        phoneNumberId,
+        webhookVerifyToken,
+        autoResponses: autoResponses ?? true,
+        isActive: true
+      });
+
+      // Reinitialize WhatsApp service with new settings
+      const { initializeWhatsApp } = require("./whatsapp");
+      
+      // Set environment variables temporarily for this instance
+      process.env.WHATSAPP_ACCESS_TOKEN = accessToken;
+      process.env.WHATSAPP_PHONE_NUMBER_ID = phoneNumberId;
+      process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN = webhookVerifyToken;
+      
+      const whatsAppService = initializeWhatsApp();
+      if (whatsAppService) {
+        console.log("WhatsApp service reinitialized with new settings");
+      }
+
+      res.json({ 
+        success: true, 
+        message: "WhatsApp settings updated successfully",
+        isActive: settings.isActive
+      });
+    } catch (error) {
+      console.error("Failed to update WhatsApp settings:", error);
+      res.status(500).json({ error: "Failed to update WhatsApp settings" });
     }
   });
 

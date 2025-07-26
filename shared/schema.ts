@@ -71,6 +71,16 @@ export const metrics = pgTable("metrics", {
   hourlyData: jsonb("hourly_data").default('[]'),
 });
 
+export const whatsappSettings = pgTable("whatsapp_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accessToken: text("access_token"),
+  phoneNumberId: text("phone_number_id"),
+  webhookVerifyToken: text("webhook_verify_token"),
+  autoResponses: boolean("auto_responses").default(true),
+  isActive: boolean("is_active").default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -105,6 +115,11 @@ export const insertMetricsSchema = createInsertSchema(metrics).omit({
   date: true,
 });
 
+export const insertWhatsappSettingsSchema = createInsertSchema(whatsappSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -123,3 +138,6 @@ export type InsertAgent = z.infer<typeof insertAgentSchema>;
 
 export type Metrics = typeof metrics.$inferSelect;
 export type InsertMetrics = z.infer<typeof insertMetricsSchema>;
+
+export type WhatsappSettings = typeof whatsappSettings.$inferSelect;
+export type InsertWhatsappSettings = z.infer<typeof insertWhatsappSettingsSchema>;

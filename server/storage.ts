@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Conversation, type InsertConversation, type Message, type InsertMessage, type Contact, type InsertContact, type Agent, type InsertAgent, type Metrics, type InsertMetrics, users, conversations, messages, contacts, agents, metrics } from "@shared/schema";
+import { type User, type InsertUser, type Conversation, type InsertConversation, type Message, type InsertMessage, type Contact, type InsertContact, type Agent, type InsertAgent, type Metrics, type InsertMetrics, type WhatsappSettings, type InsertWhatsappSettings, users, conversations, messages, contacts, agents, metrics, whatsappSettings } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -36,6 +36,10 @@ export interface IStorage {
   // Metrics
   getMetrics(): Promise<Metrics | undefined>;
   updateMetrics(metrics: InsertMetrics): Promise<Metrics>;
+
+  // WhatsApp Settings
+  getWhatsappSettings(): Promise<WhatsappSettings | undefined>;
+  updateWhatsappSettings(settings: InsertWhatsappSettings): Promise<WhatsappSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -297,6 +301,28 @@ export class DatabaseStorage implements IStorage {
       return updated;
     } else {
       const [created] = await db.insert(metrics).values(insertMetrics).returning();
+      return created;
+    }
+  }
+
+  // WhatsApp Settings
+  async getWhatsappSettings(): Promise<WhatsappSettings | undefined> {
+    const [settings] = await db.select().from(whatsappSettings).limit(1);
+    return settings || undefined;
+  }
+
+  async updateWhatsappSettings(insertSettings: InsertWhatsappSettings): Promise<WhatsappSettings> {
+    // First try to update existing settings
+    const [existing] = await db.select().from(whatsappSettings).limit(1);
+    
+    if (existing) {
+      const [updated] = await db.update(whatsappSettings)
+        .set({ ...insertSettings, updatedAt: new Date() })
+        .where(eq(whatsappSettings.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(whatsappSettings).values(insertSettings).returning();
       return created;
     }
   }
