@@ -103,16 +103,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (conversation) {
           const contact = await storage.getContact(conversation.contactId);
           if (contact?.phone) {
-            const whatsAppService = getWhatsAppService();
-            if (whatsAppService) {
+            // Get WhatsApp settings from database
+            const settings = await storage.getWhatsappSettings();
+            if (settings && settings.accessToken && settings.phoneNumberId) {
+              const { WhatsAppService } = await import('./whatsapp');
+              const whatsAppService = new WhatsAppService({
+                accessToken: settings.accessToken,
+                phoneNumberId: settings.phoneNumberId,
+                webhookVerifyToken: settings.webhookVerifyToken || '',
+              });
+              
               try {
+                console.log(`📤 Sending WhatsApp message to ${contact.phone}: "${data.content}"`);
+                console.log(`📤 Using phone number ID: ${settings.phoneNumberId}`);
+                console.log(`📤 Using access token: ${settings.accessToken ? settings.accessToken.substring(0, 20) + '...' : 'undefined'}`);
+                
                 const success = await whatsAppService.sendMessage(contact.phone, data.content);
-                if (!success) {
-                  console.warn(`Failed to send WhatsApp message to ${contact.phone}`);
+                if (success) {
+                  console.log(`✅ WhatsApp message sent successfully to ${contact.phone}`);
+                } else {
+                  console.warn(`❌ Failed to send WhatsApp message to ${contact.phone}`);
                 }
-              } catch (error) {
-                console.error(`WhatsApp send error for ${contact.phone}:`, error);
+              } catch (error: any) {
+                console.error(`❌ WhatsApp send error for ${contact.phone}:`, error);
+                if (error.response) {
+                  console.error(`❌ WhatsApp API error response:`, error.response.data);
+                  console.error(`❌ WhatsApp API error status:`, error.response.status);
+                }
               }
+            } else {
+              console.warn("WhatsApp not configured - message saved but not sent via WhatsApp");
             }
           }
         }

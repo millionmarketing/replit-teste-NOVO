@@ -25,11 +25,26 @@ export class WhatsAppService {
   // Send text message
   async sendMessage(to: string, message: string): Promise<boolean> {
     try {
+      // Ensure phone number is in E.164 format (with + prefix)
+      const formattedPhone = to.startsWith('+') ? to : `+${to}`;
+      
+      console.log(`📤 Original phone: ${to}, Formatted phone: ${formattedPhone}`);
+      
+      console.log(`📤 WhatsApp API Request:`, {
+        url: `${this.baseUrl}/${this.config.phoneNumberId}/messages`,
+        body: {
+          messaging_product: 'whatsapp',
+          to: formattedPhone,
+          type: 'text',
+          text: { body: message }
+        }
+      });
+      
       const response = await axios.post(
         `${this.baseUrl}/${this.config.phoneNumberId}/messages`,
         {
           messaging_product: 'whatsapp',
-          to: to,
+          to: formattedPhone,
           type: 'text',
           text: { body: message }
         },
@@ -41,9 +56,22 @@ export class WhatsAppService {
         }
       );
 
+      console.log(`✅ WhatsApp API response:`, response.status, response.data);
       return response.status === 200;
-    } catch (error) {
-      console.error('Error sending WhatsApp message:', error);
+    } catch (error: any) {
+      console.error('❌ Error sending WhatsApp message:', error.message);
+      if (error.response) {
+        console.error('❌ WhatsApp API Error Details:');
+        console.error('  Status:', error.response.status);
+        console.error('  Data:', JSON.stringify(error.response.data, null, 2));
+        
+        // Check for specific permission errors
+        if (error.response.data?.error?.code === 10) {
+          console.error('❌ PERMISSION ERROR: The access token does not have the required permissions.');
+          console.error('❌ Required permissions: whatsapp_business_management, whatsapp_business_messaging');
+          console.error('❌ Please check your App permissions in Facebook Developer Console.');
+        }
+      }
       return false;
     }
   }
