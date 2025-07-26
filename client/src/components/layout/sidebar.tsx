@@ -64,16 +64,16 @@ export function Sidebar() {
         <div className="text-purple-200 text-xs uppercase tracking-wide mb-4 font-medium">
           MENU
         </div>
-        
+
         {navigation.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href || (item.href === "/dashboard" && location === "/");
-          
+
           return (
             <Link key={item.name} href={item.href}>
-              <a
+              <div
                 className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-purple-200 hover:bg-purple-600/30 hover:text-primary-foreground transition-colors group",
+                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-purple-200 hover:bg-purple-600/30 hover:text-primary-foreground transition-colors group cursor-pointer",
                   isActive && "bg-purple-600/50 text-primary-foreground"
                 )}
               >
@@ -84,7 +84,7 @@ export function Sidebar() {
                     {item.badge}
                   </Badge>
                 )}
-              </a>
+              </div>
             </Link>
           );
         })}
