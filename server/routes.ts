@@ -315,13 +315,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Find or create contact
         let contact = (await storage.getContacts()).find(c => c.phone === msg.from);
         if (!contact) {
+          // Extract name from WhatsApp contact info if available, otherwise use last 4 digits
+          const contactName = msg.contactName || `Lead ${msg.from.slice(-4)}`;
+          
           contact = await storage.createContact({
-            name: `WhatsApp ${msg.from}`,
+            name: contactName,
             phone: msg.from,
             source: "whatsapp",
             stage: "new",
           });
-          console.log(`Created new contact: ${contact.id}`);
+          console.log(`Created new contact: ${contact.id} with name: ${contactName}`);
+        } else if (msg.contactName && contact.name.startsWith('WhatsApp ')) {
+          // Update existing contact name if we got a real name from WhatsApp
+          const updatedContact = await storage.updateContact(contact.id, { name: msg.contactName });
+          console.log(`Updated contact name from "${contact.name}" to "${msg.contactName}"`);
+          contact = updatedContact || contact;
         }
         
         // Find or create conversation

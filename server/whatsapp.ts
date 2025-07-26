@@ -137,6 +137,7 @@ export class WhatsAppService {
     message: string;
     timestamp: number;
     type: string;
+    contactName?: string;
   }> {
     const messages: Array<{
       from: string;
@@ -144,20 +145,32 @@ export class WhatsAppService {
       message: string;
       timestamp: number;
       type: string;
+      contactName?: string;
     }> = [];
 
     if (body.object === 'whatsapp_business_account') {
       body.entry?.forEach((entry: any) => {
         entry.changes?.forEach((change: any) => {
           if (change.field === 'messages') {
+            // Extract contacts info for names
+            const contacts = change.value?.contacts || [];
+            const contactsMap = new Map();
+            contacts.forEach((contact: any) => {
+              if (contact.profile?.name) {
+                contactsMap.set(contact.wa_id, contact.profile.name);
+              }
+            });
+
             change.value?.messages?.forEach((message: any) => {
               if (message.type === 'text') {
+                const contactName = contactsMap.get(message.from);
                 messages.push({
                   from: message.from,
                   messageId: message.id,
                   message: message.text.body,
                   timestamp: parseInt(message.timestamp),
-                  type: message.type
+                  type: message.type,
+                  contactName: contactName
                 });
               }
             });
