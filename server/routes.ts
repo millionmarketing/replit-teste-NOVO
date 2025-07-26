@@ -1,10 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertContactSchema, insertConversationSchema, insertMessageSchema, insertAgentSchema, loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from "@shared/schema";
+import { insertContactSchema, insertConversationSchema, insertMessageSchema, insertAgentSchema, loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema, users } from "@shared/schema";
 import { z } from "zod";
 import { getWhatsAppService, initializeWhatsApp } from "./whatsapp";
 import { authService } from "./auth";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
