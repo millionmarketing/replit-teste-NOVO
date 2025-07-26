@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Phone, Video, MoreVertical, Paperclip, Smile, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,16 @@ export function ChatArea({ conversation, messages, onSendMessage, isLoading }: C
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  // Format WhatsApp text (bold, italic, etc.)
+  const formatWhatsAppText = (text: string) => {
+    return text
+      .replace(/\*([^*]+)\*/g, '<strong>$1</strong>') // Bold
+      .replace(/_([^_]+)_/g, '<em>$1</em>') // Italic
+      .replace(/~([^~]+)~/g, '<del>$1</del>') // Strikethrough
+      .replace(/```([^`]+)```/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm">$1</code>') // Code
+      .replace(/\n/g, '<br>'); // Line breaks
   };
 
   const getInitials = (name: string) => {
@@ -126,7 +136,10 @@ export function ChatArea({ conversation, messages, onSendMessage, isLoading }: C
                     : "bg-primary text-primary-foreground rounded-tr-md ml-auto"
                 )}
               >
-                <p className="text-sm">{msg.content}</p>
+                <div 
+                  className="text-sm whitespace-pre-wrap"
+                  dangerouslySetInnerHTML={{ __html: formatWhatsAppText(msg.content) }}
+                />
               </div>
               <span 
                 className={cn(
@@ -167,15 +180,28 @@ export function ChatArea({ conversation, messages, onSendMessage, isLoading }: C
             <Paperclip className="w-4 h-4" />
           </Button>
           <div className="flex-1 relative">
-            <Input
-              placeholder="Your message..."
+            <Textarea
+              placeholder="Digite sua mensagem... 
+Use *texto* para negrito, _texto_ para itálico, ~texto~ para riscado
+Pressione Shift+Enter para nova linha, Enter para enviar"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              className="pr-12"
+              className="pr-12 resize-none min-h-[20px] max-h-[120px] overflow-y-auto"
+              rows={1}
               disabled={isLoading}
+              style={{
+                height: 'auto',
+                minHeight: '40px',
+                maxHeight: '120px' // Approximately 5 lines
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+              }}
             />
-            <Button variant="ghost" size="icon" className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <Button variant="ghost" size="icon" className="absolute right-3 top-2">
               <Smile className="w-4 h-4" />
             </Button>
           </div>
