@@ -11,6 +11,7 @@ import Agents from "@/pages/agents";
 import Contacts from "@/pages/contacts";
 import Analytics from "@/pages/analytics";
 import Reporting from "@/pages/reporting";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/contacts" component={Contacts} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/reporting" component={Reporting} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

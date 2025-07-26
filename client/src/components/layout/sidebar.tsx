@@ -23,10 +23,10 @@ const navigation = [
   { name: "Contatos", href: "/contacts", icon: Users },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Reporting", href: "/reporting", icon: FileText },
+  { name: "Configurações", href: "/settings", icon: Settings },
 ];
 
 const otherLinks = [
-  { name: "Settings", href: "/settings", icon: Settings },
   { name: "Help", href: "/help", icon: HelpCircle },
 ];
 
