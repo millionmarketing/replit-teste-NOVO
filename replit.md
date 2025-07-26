@@ -17,6 +17,9 @@ Preferred communication style: Simple, everyday language.
 - ✅ Webhook endpoints for receiving/sending messages
 - ✅ Real-time configuration updates and status validation
 - ✅ Template message support and automatic lead assignment to SDR agent
+- ✅ Messages section fully functional with real-time polling
+- ✅ Outgoing messages integrated with WhatsApp API
+- ✅ Status indicator showing WhatsApp connection state
 
 ## System Architecture
 

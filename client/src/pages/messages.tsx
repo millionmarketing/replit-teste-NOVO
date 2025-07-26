@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { ChatArea } from "@/components/chat/chat-area";
-import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle } from "lucide-react";
 import type { ConversationWithDetails } from "@/types";
 import type { Message } from "@shared/schema";
 
@@ -69,40 +67,6 @@ export default function Messages() {
     }
   };
 
-  // Simulate incoming message for testing
-  const simulateMessageMutation = useMutation({
-    mutationFn: ({ phone, message }: { phone: string; message: string }) =>
-      apiRequest("POST", "/api/whatsapp/simulate", { phone, message }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-      toast({
-        title: "Mensagem simulada",
-        description: "Nova conversa criada com sucesso",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erro na simulação",
-        description: "Falha ao simular mensagem",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSimulateMessage = () => {
-    const phone = `+5511999${Math.floor(Math.random() * 900000 + 100000)}`;
-    const messages = [
-      "Olá! Gostaria de saber mais sobre seus produtos.",
-      "Tenho interesse em fazer uma compra.",
-      "Podem me enviar mais informações?",
-      "Qual o prazo de entrega?",
-      "Gostaria de agendar uma demonstração."
-    ];
-    const message = messages[Math.floor(Math.random() * messages.length)];
-    
-    simulateMessageMutation.mutate({ phone, message });
-  };
-
   const selectedConversationData = conversations.find(c => c.id === selectedConversation);
 
   if (isLoading) {
@@ -151,23 +115,11 @@ export default function Messages() {
                 }
               </span>
             </div>
-            <div className="flex items-center space-x-3">
-              {(!whatsappStatus.isConfigured || !whatsappStatus.isActive) && (
-                <span className="text-xs">
-                  Configure nas Configurações → Integração WhatsApp
-                </span>
-              )}
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleSimulateMessage}
-                disabled={simulateMessageMutation.isPending}
-                className="text-xs"
-              >
-                <MessageCircle className="w-3 h-3 mr-1" />
-                {simulateMessageMutation.isPending ? "Simulando..." : "Simular Mensagem"}
-              </Button>
-            </div>
+            {(!whatsappStatus.isConfigured || !whatsappStatus.isActive) && (
+              <span className="text-xs">
+                Configure nas Configurações → Integração WhatsApp
+              </span>
+            )}
           </div>
         </div>
       )}

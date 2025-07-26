@@ -118,37 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Simulate AI agent response for incoming messages (demonstration)
-      if (data.isIncoming) {
-        setTimeout(async () => {
-          const conversation = await storage.getConversation(req.params.id);
-          if (conversation?.assignedAgentId) {
-            const agent = await storage.getAgent(conversation.assignedAgentId);
-            if (agent) {
-              const responseMessage = await storage.createMessage({
-                conversationId: req.params.id,
-                senderId: agent.id,
-                content: "Obrigado pela sua mensagem! Como posso ajudá-lo hoje?",
-                type: "text",
-                isIncoming: false,
-              });
-
-              // Send AI response via WhatsApp if configured
-              const contact = await storage.getContact(conversation.contactId);
-              if (contact?.phone) {
-                const whatsAppService = getWhatsAppService();
-                if (whatsAppService) {
-                  try {
-                    await whatsAppService.sendMessage(contact.phone, responseMessage.content);
-                  } catch (error) {
-                    console.error(`Failed to send AI response via WhatsApp:`, error);
-                  }
-                }
-              }
-            }
-          }
-        }, 2000);
-      }
+      // TODO: Integrate with AI agent for automatic responses when needed
       
       res.status(201).json(message);
     } catch (error) {
@@ -385,80 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Simulate incoming WhatsApp message (for testing)
-  app.post("/api/whatsapp/simulate", async (req, res) => {
-    try {
-      const { phone, message } = req.body;
-      
-      if (!phone || !message) {
-        return res.status(400).json({ error: "Phone and message are required" });
-      }
 
-      // Simulate webhook payload format
-      const webhookPayload = {
-        object: "whatsapp_business_account",
-        entry: [{
-          changes: [{
-            field: "messages",
-            value: {
-              messages: [{
-                from: phone,
-                id: `sim_${Date.now()}`,
-                timestamp: Math.floor(Date.now() / 1000).toString(),
-                type: "text",
-                text: { body: message }
-              }]
-            }
-          }]
-        }]
-      };
-
-      // Process through existing webhook logic
-      const whatsAppService = getWhatsAppService();
-      if (whatsAppService) {
-        const messages = whatsAppService.parseWebhook(webhookPayload);
-
-        for (const msg of messages) {
-          // Find or create contact
-          let contact = (await storage.getContacts()).find(c => c.phone === msg.from);
-          if (!contact) {
-            contact = await storage.createContact({
-              name: `WhatsApp User ${msg.from}`,
-              phone: msg.from,
-              source: "whatsapp",
-              stage: "new",
-            });
-          }
-          
-          // Find or create conversation
-          let conversation = (await storage.getConversations()).find(c => c.contactId === contact.id);
-          if (!conversation) {
-            const agents = await storage.getAgents();
-            const sdrAgent = agents.find(a => a.type === "sdr" && a.status === "active");
-            
-            conversation = await storage.createConversation({
-              contactId: contact.id,
-              status: "active",
-              assignedAgentId: sdrAgent?.id,
-            });
-          }
-          
-          // Create message
-          await storage.createMessage({
-            conversationId: conversation.id,
-            content: msg.message,
-            type: "text",
-            isIncoming: true,
-          });
-        }
-      }
-
-      res.json({ success: true, message: "Simulated message processed" });
-    } catch (error) {
-      console.error("Simulate WhatsApp message error:", error);
-      res.status(500).json({ error: "Failed to simulate message" });
-    }
-  });
 
   // WhatsApp Settings API routes
   app.get("/api/whatsapp/settings", async (req, res) => {
